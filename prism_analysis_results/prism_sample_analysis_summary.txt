@@ -1,0 +1,52 @@
+PRISM Sample Analysis Summary
+============================
+
+Dataset size: 154 rows
+Unique participants: 137
+Unique conversations: 154
+Average conversations per participant: 1.12
+
+Key demographic distributions:
+
+GENDER:
+  Male: 49.6%
+  Female: 49.6%
+  Non-binary / third gender: 0.7%
+
+AGE:
+  25-34 years old: 27.7%
+  35-44 years old: 19.0%
+  55-64 years old: 17.5%
+  18-24 years old: 16.1%
+  45-54 years old: 12.4%
+  65+ years old: 7.3%
+
+EDUCATION:
+  University Bachelors Degree: 41.6%
+  Graduate / Professional degree: 19.0%
+  Some University but no degree: 16.1%
+  Completed Secondary School: 15.3%
+  Vocational: 5.8%
+  Some Secondary: 2.2%
+
+Visualization files generated:
+- gender_distribution.png
+- age_distribution.png
+- education_distribution.png
+- employment_status_distribution.png
+- marital_status_distribution.png
+- english_proficiency_distribution.png
+- lm_familiarity_distribution.png
+- lm_frequency_use_distribution.png
+- location_distribution.png
+- study_locale_distribution.png
+- religion_distribution.png
+- ethnicity_distribution.png
+- num_turns_distribution.png
+- convo_length_words_distribution.png
+- avg_turn_length_distribution.png
+- opening_prompt_length_distribution.png
+- opening_prompt_words_distribution.png
+- gender_age_heatmap.png
+- gender_education_heatmap.png
+- age_education_heatmap.png
