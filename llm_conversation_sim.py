@@ -3,17 +3,22 @@ import uuid
 import random
 import json
 from typing import List
+import re # Import the regular expression module
+from tqdm import tqdm  # <-- Add this line
+import time # Import the time module
 
 # Import Groq and initialize the client using your environment variable for the API key.
-from groq import Groq
+from groq import Groq, APITimeoutError
 
 client = Groq(
-    api_key="YOUR API KEY HERE",
+    api_key="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",
 )
 
 # =============================================================================
 # Personality Profile Module (with Agenda)
 # =============================================================================
+
+
 class PersonalityProfile:
     def __init__(self,
                  lm_familiarity: str = "Unknown",
@@ -59,15 +64,86 @@ class PersonalityProfile:
             "location": self.location,
             "agenda": self.agenda,
         }
-
     def __repr__(self):
-        return (f"PersonalityProfile(lm_familiarity='{self.lm_familiarity}', "
-                f"lm_frequency_use='{self.lm_frequency_use}', age='{self.age}', "
-                f"gender='{self.gender}', employment_status='{self.employment_status}', "
-                f"education='{self.education}', marital_status='{self.marital_status}', "
-                f"english_proficiency='{self.english_proficiency}', study_locale='{self.study_locale}', "
-                f"religion='{self.religion}', ethnicity='{self.ethnicity}', "
-                f"location='{self.location}', agenda='{self.agenda}')")
+        parts = []
+        if self.age != "Unknown":
+            parts.append(f"I am a {self.age}")
+        if self.gender != "Unknown":
+            parts.append(f"{self.gender}")
+        if parts:
+            parts[0] = "I am a " + parts[0]
+            parts = [" ".join(parts) + " person"]
+        if self.education != "Unknown":
+            parts.append(f"My education level is {self.education}")
+        if self.employment_status != "Unknown":
+            parts.append(f"I am {self.employment_status}")
+        if self.marital_status != "Unknown":
+            parts.append(f"I am {self.marital_status}")
+        if self.english_proficiency != "Unknown":
+            parts.append(f"I am {self.english_proficiency}")
+        if self.location != "Unknown":
+            parts.append(f"I live in {self.location}")
+        if self.study_locale != "Unknown":
+            parts.append(f"studied in {self.study_locale}")
+        if self.ethnicity != "Unknown":
+            parts.append(f"My ethnicity is {self.ethnicity}")
+        if self.religion != "Unknown":
+            parts.append(f"my religion is {self.religion}")
+        if self.lm_familiarity != "Unknown":
+            parts.append(f"Regarding language models, I am {self.lm_familiarity} with them")
+        if self.lm_frequency_use != "Unknown":
+            parts.append(f"use them {self.lm_frequency_use}")
+        parts.append(f"My agenda is: {self.agenda}")
+        
+        return ". ".join(parts)
+        
+# Define buckets of options for random personality generation
+PERSONALITY_OPTIONS = {
+    "lm_familiarity": ["Very familiar", "Somewhat familiar", "Not familiar", "Never heard of them"],
+    "lm_frequency_use": ["Daily", "Weekly", "Once per month", "Less than once per month", "Never"],
+    "age": ["18-24 years old", "25-34 years old", "35-44 years old", "45-54 years old", "55-64 years old", "65+ years old"],
+    "gender": ["Male", "Female", "Non-binary", "Prefer not to say"],
+    "employment_status": ["Working full-time", "Working part-time", "Self-employed", "Unemployed", "Student", "Retired", "Homemaker"],
+    "education": ["Less than high school", "High school graduate", "Some college", "Vocational", "Bachelor's degree", "Master's degree", "Doctorate"],
+    "marital_status": ["Never been married", "Married", "Divorced", "Widowed", "Separated"],
+    "english_proficiency": ["Native speaker", "Fluent", "Intermediate", "Beginner"],
+    "study_locale": ["USA", "Canada", "UK", "Australia", "India", "Germany", "France", "Other Europe", "Asia", "Africa", "South America"],
+    "religion": ["Christianity", "Islam", "Hinduism", "Buddhism", "Judaism", "No Affiliation", "Agnostic", "Atheist", "Other"],
+    "ethnicity": ["White", "Black or African American", "Hispanic or Latino", "Asian", "Native American or Alaska Native", "Native Hawaiian or Other Pacific Islander", "Middle Eastern or North African", "Mixed Race", "Prefer not to say"],
+    "location": ["Northern America", "Europe", "Asia", "South America", "Africa", "Oceania"],
+    "agenda": [
+        "I am here to learn about the topic.",
+        "I want to understand practical applications of this subject.",
+        "I aim to have a friendly and informative chat.",
+        "I'm curious to explore creative possibilities within the topic.",
+        "I want to share my personal experiences and learn from others.",
+        "I hope to gain insights that could help me in my daily life.",
+        "I'm interested in understanding different perspectives on this topic.",
+        "My goal is to deepen my knowledge in this area.",
+        "I want to have an engaging discussion about real-world examples.",
+        "I'm excited to learn about recent developments in this field.",
+        "I want to discuss how this topic relates to society and ethics.",
+        "I'm hoping to discover new ideas and approaches.",
+    ]
+}
+
+def generate_random_personality() -> PersonalityProfile:
+    """Generates a PersonalityProfile with randomly selected attributes."""
+    return PersonalityProfile(
+        lm_familiarity=random.choice(PERSONALITY_OPTIONS["lm_familiarity"]),
+        lm_frequency_use=random.choice(PERSONALITY_OPTIONS["lm_frequency_use"]),
+        age=random.choice(PERSONALITY_OPTIONS["age"]),
+        gender=random.choice(PERSONALITY_OPTIONS["gender"]),
+        employment_status=random.choice(PERSONALITY_OPTIONS["employment_status"]),
+        education=random.choice(PERSONALITY_OPTIONS["education"]),
+        marital_status=random.choice(PERSONALITY_OPTIONS["marital_status"]),
+        english_proficiency=random.choice(PERSONALITY_OPTIONS["english_proficiency"]),
+        study_locale=random.choice(PERSONALITY_OPTIONS["study_locale"]),
+        religion=random.choice(PERSONALITY_OPTIONS["religion"]),
+        ethnicity=random.choice(PERSONALITY_OPTIONS["ethnicity"]),
+        location=random.choice(PERSONALITY_OPTIONS["location"]),
+        agenda=random.choice(PERSONALITY_OPTIONS["agenda"])
+    )
 
 # =============================================================================
 # Conversation Turn and Log Module
@@ -134,7 +210,7 @@ class Conversation:
 # LM Agent Module Using Groq for Chat Completions
 # =============================================================================
 class LM_Agent:
-    def __init__(self, name: str, personality: PersonalityProfile, provider: str, model: str):
+    def __init__(self, name: str, personality: PersonalityProfile, provider: str, model: str, debug: bool = False):
         """
         model: The Groq model identifier, e.g. "meta-llama/llama-4-scout-17b-16e-instruct"
         """
@@ -142,6 +218,7 @@ class LM_Agent:
         self.personality = personality
         self.provider = provider
         self.model = model
+        self.debug = debug
 
     def generate_response(self,
                           conversation_context: List[ConversationTurn],
@@ -157,6 +234,7 @@ class LM_Agent:
          - The current turn index
          - The random topic (if needed)
          - Whether this is the first speaker on turn 0 (if so, ask a question about the topic)
+         - If this agent is the persona agent and responding, parse the rating.
 
         Returns a dictionary with response details.
         """
@@ -168,14 +246,69 @@ class LM_Agent:
             topic=topic,
             is_first_speaker_on_turn_0=is_first_speaker_on_turn_0
         )
-        print(prompt)
-        print("--------------------------------")
-        chat_completion = client.chat.completions.create(
-            messages=[{"role": "user", "content": prompt}],
-            model=self.model,
+        if self.debug:
+            print(f"--- Prompt for {self_name} ---")
+            print(prompt)
+            print("--------------------------------")
+            
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model=self.model,
+            )
+        except APITimeoutError:
+            if self.debug:
+                print(f"--- Timeout error for {self_name}, retrying after 10 seconds... ---")
+            time.sleep(10) # Wait for 10 seconds
+            # Retry the call once
+            chat_completion = client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model=self.model,
+            )
+
+        raw_content = chat_completion.choices[0].message.content
+        content = raw_content # Keep the original content regardless of score parsing
+        score = -1 # Default score
+        within_turn_id = 0 # Default within_turn_id
+
+        # Check if this is the persona agent responding (not the first speaker)
+        is_persona_agent_responding = (
+            self.name == "User" and
+            (turn_index > 0 or (turn_index == 0 and not is_first_speaker_on_turn_0)) and
+            len(conversation_context) > 0 # Ensure there's a previous message to rate
         )
-        content = chat_completion.choices[0].message.content
-        return {"content": content, "score": 100, "within_turn_id": 0}
+        
+        if self.debug:
+            print(f"--- Raw content from {self.name} ---")
+            print(raw_content)
+            print("--------------------------------")
+
+        if is_persona_agent_responding:
+            # Try to find a rating like {85} anywhere in the response
+            match = re.search(r"\{(\d{1,3})\}", raw_content) # Use re.search to find pattern anywhere
+            if self.debug:
+                print(f"--- Search result for score in {self.name}'s response ---")
+                print(match)
+                print("--------------------------------")
+            if match:
+                parsed_score = int(match.group(1)) # Extract the number
+                # Ensure score is within 1-100 range
+                if 1 <= parsed_score <= 100:
+                    score = parsed_score
+                    if self.debug:
+                        print(f"--- Parsed score {score} from {self.name} ---")
+                else:
+                    # Handle invalid score range if needed, maybe log a warning
+                    if self.debug:
+                        print(f"--- Warning: Parsed score {parsed_score} out of range (1-100) from {self.name}. Using default. ---")
+                    # Keep score as -1 (default)
+            else:
+                # Handle case where rating is missing if needed, maybe log a warning
+                if self.debug:
+                    print(f"--- Warning: Rating pattern {{NUMBER}} not found in response from {self.name}. Using default score. ---")
+                # Keep score as -1 (default)
+
+        return {"content": content, "score": score, "within_turn_id": within_turn_id}
 
     def _build_prompt(self,
                       conversation_context: List[ConversationTurn],
@@ -187,11 +320,17 @@ class LM_Agent:
         """
         Construct the prompt text. If it's turn 0 and this agent is the first speaker,
         they must ask a question or make a request about the topic.
+        If this agent is the persona agent and responding, instruct it to rate first.
+        Removes score indicators from the history before adding to the prompt.
         """
         # Build conversation history text
         history_str = "\n".join(
+            # Use the actual agent name stored in the turn
             f"{turn.model_name}: {turn.content}" for turn in conversation_context
         )
+        
+        # Remove score indicators (e.g., "{85} ") from the history string
+        history_str = re.sub(r"\{\d{1,3}\}\s*", "", history_str)
 
         # Base system instructions: Let the agent know who it is and who it's talking to.
         system_description = (
@@ -202,7 +341,7 @@ class LM_Agent:
             f"Current turn index: {turn_index}\n\n"
         )
 
-        # If turn 0 and this is the first speaker, the agent is told to ask a question or request about the topic.
+        # Determine the core instruction based on turn and speaker order
         if turn_index == 0 and is_first_speaker_on_turn_0 and topic:
             # Force them to ask or request about the chosen topic
             instruction = (
@@ -217,12 +356,29 @@ class LM_Agent:
                 "If you're responding to a question, try to answer it.\n"
                 "If the conversation continues, you can ask follow-up questions or give further insights.\n"
             )
-            if topic and turn_index == 0:
-                # If still turn 0 but not the first speaker, it means you should respond to the question.
-                instruction += (
-                    f"This is turn 0, second speaker. Respond to the question or request about the topic:\n"
-                    f"TOPIC: {topic}\n"
-                )
+            if topic and turn_index == 0 and not is_first_speaker_on_turn_0:
+                 # If still turn 0 but not the first speaker, it means you should respond to the question.
+                 instruction += (
+                     f"This is turn 0, second speaker. Respond to the question or request about the topic:\n"
+                     f"TOPIC: {topic}\n"
+                 )
+
+        # Add rating instruction if this is the persona agent responding
+        is_persona_agent_responding = (
+            self_name == "User" and
+            (turn_index > 0 or (turn_index == 0 and not is_first_speaker_on_turn_0)) and
+            len(conversation_context) > 0 # Check if there's a previous message
+        )
+        if is_persona_agent_responding:
+            # Updated instruction: Ask for the rating anywhere, but preferably at the start.
+            rating_instruction = (
+                f"IMPORTANT: Rate the previous response from {other_name} on a scale of 1 to 100, "
+                f"based on how well it aligns with your persona and agenda. "
+                f"Be objective. Include the rating *anywhere* in your response, enclosed in curly braces, like {{rating}}. "
+                f"For example: {{85}}. It's helpful if it's near the beginning.\n\n"
+            )
+            # Prepend the rating instruction to the main instruction.
+            instruction = rating_instruction + instruction
 
         # Put everything together
         full_prompt = (
@@ -263,10 +419,42 @@ class ConversationOrchestrator:
 
     def get_random_topic(self) -> str:
         topics = [
-            "The future of renewable energy.",
-            "The impact of social media on society.",
-            "Space exploration and colonization.",
-            "The evolution of artificial intelligence."
+            "Agriculture",
+            "Architecture",
+            "Biology",
+            "Chemistry",
+            "Climate+Weather",
+            "ComplexNetworks",
+            "ComputerNetworks",
+            "CyberSecurity",
+            "DataChallenges",
+            "EarthScience",
+            "Economics",
+            "Education",
+            "Energy",
+            "Entertainment",
+            "Finance",
+            "GIS",
+            "Government",
+            "Healthcare",
+            "ImageProcessing",
+            "MachineLearning",
+            "Museums",
+            "NaturalLanguage",
+            "Neuroscience",
+            "Physics",
+            "ProstateCancer",
+            "Psychology+Cognition",
+            "PublicDomains",
+            "SearchEngines",
+            "SocialNetworks",
+            "SocialSciences",
+            "Software",
+            "Sports",
+            "TimeSeries",
+            "Transportation",
+            "eSports",
+            "Complementary Collections"
         ]
         return random.choice(topics)
 
@@ -374,55 +562,52 @@ class ConversationOrchestrator:
 # =============================================================================
 # Main Script Entry
 # =============================================================================
-def main():
-    # Create a personality profile for an agent with a persona.
-    persona_with_agenda = PersonalityProfile(
-        lm_familiarity="Somewhat familiar",
-        lm_frequency_use="Once per month",
-        age="25-34 years old",
-        gender="Female",
-        employment_status="Working full-time",
-        education="Vocational",
-        marital_status="Never been married",
-        english_proficiency="Native speaker",
-        study_locale="canada",
-        religion="No Affiliation",
-        ethnicity="White",
-        location="Northern America",
-        agenda="I am here to absorb all the information the universe has to offer."
-    )
+def main(debug=False):
+    num_conversations_to_run = 700
+    all_conversations_data = []
 
-    # Create a default personality profile for the other agent.
-    default_persona = PersonalityProfile(
-        agenda="I am here to assist without bias."
-    )
+    if debug:
+        print(f"Starting simulation for {num_conversations_to_run} conversations...")
 
-    # Specify the Groq model name.
-    model_name = "meta-llama/llama-4-scout-17b-16e-instruct"
+    # Wrap the conversation loop with tqdm
+    for i in tqdm(range(num_conversations_to_run), desc="Simulating conversations"):
+        if debug:
+            print(f"\n--- Running Conversation {i+1}/{num_conversations_to_run} ---")
+        
+        persona_with_agenda = generate_random_personality()
+        default_persona = PersonalityProfile(agenda="I am here to assist without bias.")
+        model_name = "llama3-8b-8192"
 
-    # Create two LM agents (exactly two for this logic).
-    lm_agent0 = LM_Agent(name="LM-Agent-Persona", personality=persona_with_agenda, provider="groq", model=model_name)
-    lm_agent1 = LM_Agent(name="LM-Agent-Default", personality=default_persona, provider="groq", model=model_name)
-    agents = [lm_agent0, lm_agent1]
+        # Add debug flag to agents
+        lm_agent0 = LM_Agent(name=f"User", personality=persona_with_agenda, 
+                           provider="groq", model=model_name, debug=debug)
+        lm_agent1 = LM_Agent(name=f"Agent", personality=default_persona,
+                           provider="groq", model=model_name, debug=debug)
+        
+        agents = [lm_agent0, lm_agent1]
+        user_id = f"user_sim_{i}"
+        orchestrator = ConversationOrchestrator(user_id, agents)
+        
+        if debug:
+            print(f"Conversation Topic: {orchestrator.topic}")
 
-    # Define the user ID. (No explicit user message; the conversation is seeded by the random topic.)
-    user_id = "user9"
+        orchestrator.run_conversation(max_rounds=4)
+        conversation_data = orchestrator.export_conversation()
+        all_conversations_data.append(conversation_data)
 
-    # Initialize the orchestrator
-    orchestrator = ConversationOrchestrator(user_id, agents)
-    # Run the conversation for 3 rounds (turns). Turn 0 => two messages. Turn 1 => two messages. Turn 2 => two messages.
-    orchestrator.run_conversation(max_rounds=3)
+        if debug:
+            print(f"--- Finished Conversation {i+1} (ID: {conversation_data['conversation_id']}) ---")
 
-    # Export the conversation
-    conversation_data = orchestrator.export_conversation()
+    output_filename = "all_conversations_dump.json"
+    if debug:
+        print(f"\nSaving data for {len(all_conversations_data)} conversations to {output_filename}...")
+    
+    with open(output_filename, "w") as f:
+        json.dump(all_conversations_data, f, indent=2)
+    
+    if debug:
+        print(f"Successfully saved all conversation data to {output_filename}.")
 
-    # Save to JSON
-    with open("conversation_dump.json", "w") as f:
-        json.dump(conversation_data, f, indent=2)
-
-    # Print results
-    print("Final Conversation Log:")
-    print(json.dumps(conversation_data, indent=2))
 
 if __name__ == "__main__":
-    main()
+    main(debug=False)
