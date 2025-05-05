@@ -6,12 +6,13 @@ from typing import List
 import re # Import the regular expression module
 from tqdm import tqdm  # <-- Add this line
 import time # Import the time module
+import pandas as pd
 
 # Import Groq and initialize the client using your environment variable for the API key.
 from groq import Groq, APITimeoutError
 
 client = Groq(
-    api_key="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",
+    api_key="YOUR API KEY HERE",
 )
 
 # =============================================================================
@@ -398,9 +399,9 @@ class LM_Agent:
 # Conversation Orchestrator Module
 # =============================================================================
 class ConversationOrchestrator:
-    def __init__(self, user_id: str, lm_agents: List[LM_Agent]):
-        # Pick a random topic
-        self.topic = self.get_random_topic()
+    def __init__(self, user_id: str, lm_agents: List[LM_Agent], topic: str):
+        # Use the provided topic instead of random selection
+        self.topic = topic
         # Create the conversation object
         self.conversation = Conversation(user_id, self.topic)
 
@@ -416,47 +417,6 @@ class ConversationOrchestrator:
             self.agent0.name: self.agent0.personality.to_dict(),
             self.agent1.name: self.agent1.personality.to_dict()
         }
-
-    def get_random_topic(self) -> str:
-        topics = [
-            "Agriculture",
-            "Architecture",
-            "Biology",
-            "Chemistry",
-            "Climate+Weather",
-            "ComplexNetworks",
-            "ComputerNetworks",
-            "CyberSecurity",
-            "DataChallenges",
-            "EarthScience",
-            "Economics",
-            "Education",
-            "Energy",
-            "Entertainment",
-            "Finance",
-            "GIS",
-            "Government",
-            "Healthcare",
-            "ImageProcessing",
-            "MachineLearning",
-            "Museums",
-            "NaturalLanguage",
-            "Neuroscience",
-            "Physics",
-            "ProstateCancer",
-            "Psychology+Cognition",
-            "PublicDomains",
-            "SearchEngines",
-            "SocialNetworks",
-            "SocialSciences",
-            "Software",
-            "Sports",
-            "TimeSeries",
-            "Transportation",
-            "eSports",
-            "Complementary Collections"
-        ]
-        return random.choice(topics)
 
     def next_round(self):
         """
@@ -563,16 +523,33 @@ class ConversationOrchestrator:
 # Main Script Entry
 # =============================================================================
 def main(debug=False):
-    num_conversations_to_run = 700
+    # Read the topic frequencies from the real dataset
+    df = pd.read_csv('merged_data_with_topics.csv')
+    topic_frequencies = df['topic'].value_counts().to_dict()
+    
+    # Calculate total number of conversations needed
+    total_conversations = sum(topic_frequencies.values())
+    
+    # Create a list of topics that matches the exact frequencies
+    topics_list = []
+    for topic, count in topic_frequencies.items():
+        topics_list.extend([topic] * count)
+    
+    # Shuffle the list to randomize the order
+    random.shuffle(topics_list)
+    
     all_conversations_data = []
 
     if debug:
-        print(f"Starting simulation for {num_conversations_to_run} conversations...")
+        print(f"Starting simulation for {total_conversations} conversations...")
+        print("Topic distribution:")
+        for topic, count in topic_frequencies.items():
+            print(f"{topic}: {count}")
 
     # Wrap the conversation loop with tqdm
-    for i in tqdm(range(num_conversations_to_run), desc="Simulating conversations"):
+    for i in tqdm(range(total_conversations), desc="Simulating conversations"):
         if debug:
-            print(f"\n--- Running Conversation {i+1}/{num_conversations_to_run} ---")
+            print(f"\n--- Running Conversation {i+1}/{total_conversations} ---")
         
         persona_with_agenda = generate_random_personality()
         default_persona = PersonalityProfile(agenda="I am here to assist without bias.")
@@ -586,7 +563,9 @@ def main(debug=False):
         
         agents = [lm_agent0, lm_agent1]
         user_id = f"user_sim_{i}"
-        orchestrator = ConversationOrchestrator(user_id, agents)
+        
+        # Use the pre-determined topic from our shuffled list
+        orchestrator = ConversationOrchestrator(user_id, agents, topics_list[i])
         
         if debug:
             print(f"Conversation Topic: {orchestrator.topic}")
@@ -598,7 +577,7 @@ def main(debug=False):
         if debug:
             print(f"--- Finished Conversation {i+1} (ID: {conversation_data['conversation_id']}) ---")
 
-    output_filename = "all_conversations_dump.json"
+    output_filename = "all_conversations_dump_matched_frequencies.json"
     if debug:
         print(f"\nSaving data for {len(all_conversations_data)} conversations to {output_filename}...")
     
