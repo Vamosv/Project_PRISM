@@ -9,6 +9,7 @@ import re
 from tqdm import tqdm
 import statsmodels.formula.api as smf
 from textstat import flesch_reading_ease, flesch_kincaid_grade
+from datetime import datetime
 
 # Set the style for plots
 plt.style.use('default')  # Use default style instead of ggplot to remove gray background
@@ -19,6 +20,9 @@ sns.set_palette(blue_gray_palette)
 orange_color = '#FF7E29'  # Orange for polarity dots
 blue_color = '#1E88E5'    # Blue for subjectivity dots
 gray_color = '#777777'    # Gray for regression lines
+
+# Generate timestamp for unique filenames
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
 def extract_score(content):
     """Extract score from the message content if present"""
@@ -55,7 +59,7 @@ def calculate_text_metrics(text):
 
 # Load the conversation data
 print("Loading conversation data...")
-with open('all_conversations_dump_two.json', 'r') as f:
+with open('all_conversations_dump_matched_frequencies.json', 'r') as f:
     conversations_data = json.load(f)
 
 # Create a list to hold all conversation turns
@@ -146,7 +150,7 @@ for i, row in avg_scores.iterrows():
                  ha='center')
 
 plt.tight_layout()
-plt.savefig('average_score_per_turn.png', dpi=300)
+plt.savefig(f'average_score_per_turn_{timestamp}.png', dpi=300)
 plt.show()
 
 # Analysis 2: Correlation between psychological indicators and satisfaction
@@ -229,7 +233,7 @@ if 'score' in df_analysis.columns and not df_analysis['score'].isna().all():
     plt.ylabel("User's Satisfaction Score", fontsize=14)
     plt.title("Relationship Between Agent's Response Sentiment and User Satisfaction", fontsize=16)
     plt.tight_layout()
-    plt.savefig('sentiment_satisfaction_correlation.png', dpi=300)
+    plt.savefig(f'sentiment_satisfaction_correlation_{timestamp}.png', dpi=300)
     plt.show()
 else:
     print("\nSkipping score correlation analysis due to missing score data")
@@ -293,7 +297,7 @@ if all(col in df_analysis.columns for col in ['tb_polarity_user', 'tb_polarity_a
         axs[1].grid(False)
 
     plt.tight_layout()
-    plt.savefig('emotional_influence.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'emotional_influence_{timestamp}.png', dpi=300, bbox_inches='tight')
     plt.show()
 else:
     print("Skipping emotional influence analysis due to missing columns")

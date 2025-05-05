@@ -545,7 +545,7 @@ def main(debug=False):
         print("Topic distribution:")
         for topic, count in topic_frequencies.items():
             print(f"{topic}: {count}")
-
+    
     # Wrap the conversation loop with tqdm
     for i in tqdm(range(total_conversations), desc="Simulating conversations"):
         if debug:
